@@ -16,6 +16,48 @@
 import argparse
 from collections import Counter
 
+KEYBOARD_PATTERNS = [
+
+    # qwerty row
+    "qwe",
+    "qwer",
+    "qwert",
+    "qwerty",
+    "qwertyuiop",
+    "werty",
+    "ertyuiop",
+    "trewq",
+
+    # asdf row
+    "asd",
+    "asdf",
+    "asdfg",
+    "asdfgh",
+
+    # zxcv row
+    "zxc",
+    "zxcv",
+    "zxcvbn",
+    "zxcvbnm",
+
+    # diagonals
+    "qaz",
+    "qazwsx",
+    "wsx",
+
+    # numeric walks
+    "q1w2",
+    "q1w2e3",
+
+    # azerty
+    "azerty",
+
+    # observed variants
+    "aqwert",
+    "vbnhb",
+    "drews",
+    "tress",
+]
 
 # ---------------------------------------------------------------------------
 # Parsing
@@ -224,38 +266,96 @@ def normalise_text(text):
 
     return text
 
+
+def keyboard_walk_passwords(passwords):
+
+    findings = []
+
+    for record in passwords:
+
+        password = record["password"].lower()
+
+        matches = []
+
+        for pattern in KEYBOARD_PATTERNS:
+
+            if pattern in password:
+
+                matches.append(pattern)
+
+        if matches:
+
+            findings.append({
+                "username": record["username"],
+                "password": record["password"],
+                "matches": matches
+            })
+
+    return findings
+
+
+def keyboard_walk_stats(findings):
+
+    counts = Counter()
+
+    for finding in findings:
+        for match in finding["matches"]:
+            counts[match] += 1
+
+    return counts.most_common()
+
 # ---------------------------------------------------------------------------
 # Reporting
 # ---------------------------------------------------------------------------
 
-def executive_summary(passwords, admins, length_failures, minimum_length, company_findings):
+def executive_summary(results):
 
-    total = len(passwords)
-    failure_count = len(length_failures)
-    percentage = round(failure_count / total * 100,1) if total else 0
-    company_count = len(company_findings)
+    total = results["total_passwords"]
+    admin_count = results["admins"]["count"]
+    failure_count = results["password_length"]["count"]
+    percentage = results["password_length"]["percentage"]
+    minimum_length = results["password_length"]["minimum_length"]
+    company_count = results["company_words"]["count"]
+    keyboard_count = results["keyboard_walks"]["count"]
+    company_text = ""
 
     if company_count > 0:
 
         company_text = (
-        f"\nThe organisation name, or a variation thereof, was identified within {company_count} recovered "
-        "passwords. Passwords that contain company-related terms are particularly susceptible to targeted "
-        "guessing attacks and should be prioritised for remediation.")
+            f"\n\nThe organisation name, or a variation thereof, "
+            f"was identified within {company_count} recovered "
+            f"passwords. Passwords that contain company-related "
+            f"terms are particularly susceptible to targeted "
+            f"guessing attacks and should be prioritised for remediation."
+        )
 
-    else:
-        company_text = ""
+    keyboard_text = ""
+
+    if keyboard_count > 0:
+
+        keyboard_text = (
+            f"\n\n{keyboard_count} recovered passwords "
+            f"were found to contain common keyboard "
+            f"walking patterns."
+        )
 
     return f"""
         A password audit was performed against extracted password hashes.
 
-        A total of {total} username and plaintext password combinations were recovered and analysed.
+        A total of {total} username and plaintext password combinations
+        were recovered and analysed.
 
-        {len(admins)} Domain Administrator accounts were identified within the recovered password dataset.
+        {admin_count} Domain Administrator accounts were identified within
+        the recovered password dataset.
 
-        {failure_count} passwords ({percentage}%) did not meet the minimum password length requirement of {minimum_length} characters.
-
+        {failure_count} passwords ({percentage}%)
+        did not meet the minimum password length requirement
+        of {minimum_length} characters.
         {company_text}
+        {keyboard_text}
         """.strip()
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +382,7 @@ def main():
     top_passes = top_passwords(passwords)
     company_words = load_company_words(args.company_words)
     company_findings = company_name_passwords(passwords, company_words)
+    keyboard_findings = keyboard_walk_passwords(passwords)
 
     results = {}
 
@@ -309,14 +410,24 @@ def main():
         "company_words": company_words
     }
 
+    results["keyboard_walks"] = {
+        "count": len(keyboard_findings),
+        "accounts": keyboard_findings,
+        "stats": keyboard_walk_stats(keyboard_findings)
+    }
+
+    results["total_passwords"] = len(passwords)
+    results["unique_passwords"] = len(set(p["password"]for p in passwords))
+
     print()
-    print(executive_summary(passwords, admins, length_failures, minimum_length, company_findings))
+    print(executive_summary(results))
     print()
 
-    print(f"Passwords Analysed : {len(passwords)}")
-    print(f"Compromised Admins : {len(admins)}")
-    print(f"Unique Passwords   : {len(set(p['password'] for p in passwords))}")
-    print(f"Company-related Words: {len(company_findings)}")
+    print(f"Passwords Analysed : {results['total_passwords']}")
+    print(f"Compromised Admins : {results['admins']['count']}")
+    print(f"Unique Passwords   : {results['unique_passwords']}")
+    print(f"Company-related Words : {results['company_words']['count']}")
+    print(f"Keyboard Walks : {results['keyboard_walks']['count']}")
 
 
 if __name__ == "__main__":
