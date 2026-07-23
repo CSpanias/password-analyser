@@ -1,0 +1,9 @@
+[project]
+name = "password-analyser"
+version = "0.1.0"
+description = "Hashcat potfile-based password analyser"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[project.scripts]
+password-analyser = "password_analyser:main"
