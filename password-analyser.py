@@ -18,6 +18,11 @@ import re
 from collections import Counter
 from collections import defaultdict
 
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
 KEYBOARD_PATTERNS = [
 
     # qwerty row
@@ -105,6 +110,20 @@ SEASONS = {
     "fall",
     "winter"
 }
+
+NUMBER_WORDS = {
+    0: "zero",
+    1: "one",
+    2: "two",
+    3: "three",
+    4: "four",
+    5: "five",
+    6: "six",
+    7: "seven",
+    8: "eight",
+    9: "nine"
+}
+
 
 # ---------------------------------------------------------------------------
 # Parsing
@@ -214,13 +233,31 @@ def normalise_password(password):
     return password
 
 
+def human_number(value):
+
+    if value in NUMBER_WORDS:
+        return NUMBER_WORDS[value]
+
+    return str(value)
+
+
 # ---------------------------------------------------------------------------
 # Analysis
 # ---------------------------------------------------------------------------
 
-def password_lengths(passwords):
+# Recovered Domain Admins
+def compromised_admins(passwords, domain_admins):
 
-    return Counter(len(record["password"]) for record in passwords)
+    admins = []
+    admin_set = {user.lower().split("\\")[-1] for user in domain_admins}
+
+    for record in passwords:
+        username = (record["username"].lower().split("\\")[-1])
+
+        if username in admin_set:
+            admins.append(record)
+
+    return admins
 
 
 # Most Used Passwords
@@ -249,22 +286,12 @@ def password_reuse(passwords):
     return reuse
 
 
-# Recovered Domain Admins
-def compromised_admins(passwords, domain_admins):
-
-    admins = []
-    admin_set = {user.lower().split("\\")[-1] for user in domain_admins}
-
-    for record in passwords:
-        username = (record["username"].lower().split("\\")[-1])
-
-        if username in admin_set:
-            admins.append(record)
-
-    return admins
-
-
 # Non-Compliant Passwords
+def password_lengths(passwords):
+
+    return Counter(len(record["password"]) for record in passwords)
+
+
 def load_domain_policy(path):
 
     policy = {}
@@ -279,6 +306,7 @@ def load_domain_policy(path):
             policy[key.strip()] = value.strip()
 
     return policy
+
 
 def password_length_failures(passwords,minimum_length):
 
@@ -470,6 +498,16 @@ def common_passwords(passwords):
 
     return findings
 
+def common_password_stats(findings):
+
+    counter = Counter()
+
+    for finding in findings:
+        for match in finding["matches"]:
+            counter[match] += 1
+
+    return counter.most_common()
+
 
 # Date-Related Strings
 def date_passwords(passwords):
@@ -567,109 +605,494 @@ def password_length_distribution(passwords):
 # Reporting
 # ---------------------------------------------------------------------------
 
+# ------------------
+# Executive Summary
+# ------------------
+
 def executive_summary(results):
 
     total = results["total_passwords"]
+    enabled_users = results["enabled_users"]
     admin_count = results["admins"]["count"]
     failure_count = results["password_length"]["count"]
     percentage = results["password_length"]["percentage"]
     minimum_length = results["password_length"]["minimum_length"]
     company_count = results["company_words"]["count"]
+    username_count = results["username_passwords"]["count"]
+    reuse_count = results["password_reuse"]["count"]
+    common_count = results["common_passwords"]["count"]
+    date_count = results["date_passwords"]["count"]
     keyboard_count = results["keyboard_walks"]["count"]
-    company_text = ""
-    username_count = (results["username_passwords"]["count"])
-    reuse_count = (results["password_reuse"]["count"])
-    common_count = (results["common_passwords"]["count"])
-    date_count = (results["date_passwords"]["count"])
+    crack_rate = results["crack_rate"]
 
-    if date_count > 0:
+    summary = []
 
-        date_text = (
-            f"\n\n{date_count} recovered passwords "
-            f"were found to contain variations of "
-            f"days, months, seasons, or dates."
-        )
+    summary.append("A password audit was performed against extracted Active Directory password hashes to assess the "
+        "effectiveness of password selection practices and identify weaknesses that could increase the likelihood "
+        "of credential compromise.")
+
+    summary.append(
+        f"Through password-cracking techniques, it was possible to recover {total} plaintext passwords from "
+        f"{enabled_users:,} enabled user accounts, representing approximately {crack_rate}% of the assessed population. "
+        "This demonstrates that a measurable proportion of user credentials remain susceptible to password-cracking "
+        "attacks following credential exposure.")
+
+    weaknesses = []
+
+    if company_count:
+        weaknesses.append("organisation-related terminology")
+
+    if common_count:
+        weaknesses.append("common password phrases")
+
+    if date_count:
+        weaknesses.append("date-based passwords")
+
+    if keyboard_count:
+        weaknesses.append("keyboard sequences")
+
+    if username_count:
+        weaknesses.append("username-derived passwords")
+
+    if reuse_count:
+        weaknesses.append("password reuse between related accounts")
+
+    if weaknesses:
+
+        summary.append("The assessment identified recurring weaknesses relating to password selection practices. A "
+            "significant proportion of recovered credentials were found to follow predictable construction "
+            "patterns, reducing password entropy and increasing susceptibility to password guessing, password "
+            "spraying, and offline password-cracking attacks.")
+
+    if admin_count:
+
+        summary.append(f"Password weaknesses were also identified within privileged identities, resulting in the "
+            f"successful recovery of {human_number(admin_count)} Domain Administrator password{'s' if admin_count > 1 else ''}. "
+            "Such identities represent high-value targets due to the elevated level of access they provide "
+            "across the environment. Their compromise would substantially increase the potential impact of a successful attack.")
+
+    if failure_count:
+
+        summary.append(f"The domain enforced a minimum password length requirement of {human_number(minimum_length)} characters. "
+            f"However, analysis of the recovered credentials identified {failure_count} passwords "
+            f"({percentage}% of recovered passwords) that did not comply with this requirement, "
+            "indicating that weak, legacy, or otherwise non-compliant credentials remain present within the environment.")
+
+    summary.append("Overall, the results indicate that password complexity and selection practices could be further improved. "
+        "Strengthening password policy enforcement, reducing the use of predictable password patterns, and ensuring "
+        "privileged accounts utilise unique, high-entropy passwords will reduce the likelihood of successful "
+        "credential-based attacks and improve the overall resilience of the organisation's identity infrastructure.")
+
+    return "\n\n".join(summary)
+
+# ---------------------
+# Technical Commentary
+# ---------------------
+
+def commentary_admins(results):
+
+    admins = (results["admins"]["accounts"])
+    count = (results["admins"]["count"])
+
+    if not count:
+
+        return ("No Domain Administrator passwords were successfully recovered during the password audit. "
+            "This is a positive outcome, as privileged accounts represent high-value targets and their compromise "
+            "would significantly increase the potential impact of a successful attack.")
+
+    lines = []
+
+    lines.append(f"{human_number(count).capitalize()} Domain Administrator "
+        f"account{'s were' if count > 1 else ' was'} successfully recovered during the password audit.")
+    lines.append("")
+
+    lines.append("| Username | Password |")
+    lines.append("| ---------- | ---------- |")
+
+    for account in admins:
+        lines.append(f"| {account['username']} | {mask_password(account['password'])} |")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def commentary_password_lengths(results):
+
+    minimum_length = results["password_length"]["minimum_length"]
+    failures = results["password_length"]["failures"]
+    failure_count = results["password_length"]["count"]
+    failure_percentage = results["password_length"]["percentage"]
+
+    lengths = results["password_lengths"]["lengths"]
+    total_passwords = results["total_passwords"]
+
+    if not lengths:
+        return ""
+
+    most_common_length = max(lengths, key=lambda item: item[1])[0]
+    lines = []
+
+    if failure_count:
+        distribution = Counter(failure["length"] for failure in failures)
+        most_common = distribution.most_common()
+        highest = most_common[0][1]
+        common_lengths = [str(length) for length, frequency in most_common if frequency == highest]
+        top_lengths = " and ".join(common_lengths)
+
+        lines.append(f"The domain enforced a minimum password length requirement of {minimum_length} characters. "
+            f"Analysis of the recovered credentials identified {failure_count} passwords ({failure_percentage}% "
+            "of recovered passwords) that did not comply with this requirement. The most frequently observed "
+            f"non-compliant password length{'s were' if len(common_lengths) > 1 else ' was'} "
+            f"{top_lengths} character{'s' if len(common_lengths) == 1 else ''}. The most commonly observed password length "
+            f"overall was {most_common_length} characters.")
+
+        lines.append("")
+        lines.append("The following non-compliant password lengths were identified:")
+        lines.append("")
+
+        lines.append("| Password Length | Account Count | Percentage |")
+        lines.append("| ---------- | ---------- | ---------- |")
+
+        for length, frequency in sorted(distribution.items()):
+            distribution_percentage = round(frequency / total_passwords * 100, 1)
+
+            lines.append(f"| {length} | {frequency} | {distribution_percentage}% |")
+
+        lines.append("")
 
     else:
-        date_text = ""
+        lines.append("All recovered passwords complied with the configured minimum password length requirement "
+            f"of {minimum_length} characters. This indicates effective enforcement of the domain password "
+            f"policy. The most commonly observed password length was {most_common_length} characters.")
 
-    if reuse_count > 0:
+        lines.append("")
 
-        reuse_text = (
-            f"\n\n{reuse_count} accounts were identified "
-            f"as sharing passwords with similarly named "
-            f"user accounts."
-        )
+    lines.append("The following password length distribution was observed across the recovered credentials:")
+    lines.append("")
 
-    else:
-        reuse_text = ""
+    lines.append("| Length | Count | Percentage |")
+    lines.append("| ---------- | ---------- | ---------- |")
 
-    if username_count > 0:
+    for length, count in sorted(lengths):
 
-        username_text = (
-            f"\n\n{username_count} recovered passwords "
-            f"were identified as containing the username "
-            f"or a variation thereof."
-        )
+        percentage = round(count / total_passwords * 100, 1)
+        lines.append(f"| {length} | {count} | {percentage}% |")
 
-    else:
-        username_text = ""
+    lines.append("")
 
-    if company_count > 0:
+    return "\n".join(lines)
 
-        company_text = (
-            f"\n\nThe organisation name, or a variation thereof, "
-            f"was identified within {company_count} recovered "
-            f"passwords. Passwords that contain company-related "
-            f"terms are particularly susceptible to targeted "
-            f"guessing attacks and should be prioritised for remediation."
-        )
 
-    else:
-        company_text = ""
+def commentary_password_reuse(results):
 
-    if keyboard_count > 0:
+    reused_passwords = []
 
-        keyboard_text = (
-            f"\n\n{keyboard_count} recovered passwords "
-            f"were found to contain common keyboard "
-            f"walking patterns."
-        )
+    for password, count in (results["password_frequency"]["passwords"]):
+        if count < 2:
+            continue
 
-    else:
-        keyboard_text = ""
+        reused_passwords.append({"password": password,"count": count})
 
-    if common_count > 0:
+    if not reused_passwords:
+        return ("No password reuse was identified between similarly named accounts. This suggests that privileged and "
+            "standard user accounts are generally configured with unique credentials, reducing the risk of "
+            "privilege escalation following credential compromise.")
 
-        common_text = (
-            f"\n\n{common_count} recovered passwords "
-            f"were identified as variations of common "
-            f"passwords or widely used password phrases."
-        )
+    lines = []
 
-    else:
-        common_text = ""
+    lines.append(
+        "Analysis of the recovered credentials identified several passwords that were reused across multiple "
+        "accounts. Password reuse increases the impact of credential compromise, as a single recovered password "
+        "may provide access to multiple systems, services, or user accounts.")
 
-    return f"""
-        A password audit was performed against extracted password hashes.
+    lines.append("")
 
-        A total of {total} username and plaintext password combinations
-        were recovered and analysed.
+    lines.append("| Password | Times Seen | Percentage |")
+    lines.append("| ---------- | ---------- | ---------- |")
 
-        {admin_count} Domain Administrator accounts were identified within
-        the recovered password dataset.
+    total_passwords = results["total_passwords"]
 
-        {failure_count} passwords ({percentage}%)
-        did not meet the minimum password length requirement
-        of {minimum_length} characters.
-        {company_text}
-        {keyboard_text}
-        {username_text}
-        {reuse_text}
-        {common_text}
-        {date_text}
-        """.strip()
+    for entry in reused_passwords[:10]:
+        percentage = round(entry["count"] / total_passwords * 100, 1)
+        lines.append(f"| {mask_password(entry['password'])} | {entry['count']} | {percentage}% |")
+    
+    lines.append("")
 
+    return "\n".join(lines)
+
+def commentary_similar_account_reuse(results):
+
+    reuse_accounts = (results["password_reuse"]["accounts"])
+    count = (results["password_reuse"]["count"])
+
+    if not count:
+
+        return ("No recovered passwords were identified as containing the username or an obvious variation thereof. This "
+            "reduces susceptibility to targeted password guessing attacks that leverage user-specific information.")
+
+    lines = []
+
+    lines.append(
+        f"{human_number(count).capitalize()} account pair{'s were' if count > 1 else ' was'} "
+        "identified as sharing passwords between similarly named accounts. This behaviour is "
+        "commonly observed where standard and privileged accounts are operated by the same individual or "
+        "service. Password reuse increases the impact of credential compromise and may facilitate privilege "
+        "escalation or lateral movement.")
+
+    lines.append("")
+    lines.append("| Username | Password | Shared With |")
+    lines.append("| ---------- | ---------- | ---------- |")
+
+    for account in reuse_accounts:
+        lines.append(f"| {account['username']} | {mask_password(account['password'])} | {account['shared_with']} |")
+
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def commentary_username_passwords(results):
+
+    accounts = (results["username_passwords"]["accounts"])
+    count = (results["username_passwords"]["count"])
+
+    if not count:
+        return ""
+
+    lines = []
+
+    lines.append(f"{human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+        "identified as containing the username or a variation thereof. Passwords incorporating username-related "
+        "information reduce password entropy and may be more easily predicted by an attacker.")
+
+    lines.append("")
+
+    lines.append("| Username | Password |")
+    lines.append("| ---------- | ---------- |")
+
+    for account in accounts:
+        lines.append(f"| {account['username']} | {mask_password(account['password'])} |")
+
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def commentary_company_words(results):
+
+    accounts = results["company_words"]["accounts"]
+    count = results["company_words"]["count"]
+    stats = results["company_words"]["stats"]
+
+    if not count:
+
+        return ("No recovered passwords were identified as containing organisation-related terminology. This reduces the "
+            "effectiveness of targeted password guessing attacks that utilise publicly available organisational information.")
+
+    lines = []
+
+    lines.append(
+        f"The organisation name, or a variation thereof, was identified within {human_number(count)} recovered "
+        f"password{'s' if count != 1 else ''}. Organisation-specific terminology may be inferred from publicly "
+        "available information and can therefore increase exposure to targeted authentication attacks.")
+
+    lines.append("")
+
+    lines.append("| Username | Password |")
+    lines.append("| ---------- | ---------- |")
+
+    for account in accounts:
+        lines.append(f"| {account['username']} | {mask_password(account['password'])} |")
+
+    if stats:
+        lines.append("")
+        lines.append("The following organisation-related terms were identified most frequently within recovered passwords:")
+        lines.append("")
+
+        lines.append("| Term | Occurrences |")
+        lines.append("| ---------- | ---------- |")
+
+        for term, frequency in stats:
+            lines.append(f"| {term} | {frequency} |")
+
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def commentary_date_passwords(results):
+
+    accounts = results["date_passwords"]["accounts"]
+    count = results["date_passwords"]["count"]
+    stats = results["date_passwords"]["stats"]
+
+    if not count:
+
+        return ("No recovered passwords were identified as containing date-related terminology such as days, months, or "
+            "seasons. This reduces reliance on predictable and easily guessable password construction patterns.")
+
+    lines = []
+
+    lines.append(f"{human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+        "identified as containing references to days, months, seasons, or other date-related terms. "
+        "Dates, seasons, and similar memorable references are commonly used to improve memorability "
+        "but result in predictable password construction patterns.")
+
+    lines.append("")
+
+    lines.append("| Username | Password |")
+    lines.append("| ---------- | ---------- |")
+
+    for account in accounts:
+        lines.append(f"| {account['username']} | {mask_password(account['password'])} |")
+
+    if stats:
+
+        lines.append("")
+        lines.append("The following date-related terms were identified most frequently within recovered passwords:")
+        lines.append("")
+
+        lines.append("| Term | Occurrences |")
+        lines.append("| ---------- | ---------- |")
+
+        for term, frequency in stats:
+            lines.append(f"| {term} | {frequency} |")
+
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def commentary_keyboard_walks(results):
+
+    accounts = results["keyboard_walks"]["accounts"]
+    count = results["keyboard_walks"]["count"]
+    stats = results["keyboard_walks"]["stats"]
+
+    if not count:
+
+        return ("No recovered passwords were identified as containing keyboard walking patterns. Such patterns are "
+            "commonly included within password-cracking rule sets and their absence represents a positive indicator of password quality.")
+
+    lines = []
+
+    lines.append(f"{human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+        "identified as containing keyboard walking patterns. Keyboard sequences are widely represented within password "
+        "auditing wordlists and cracking rule sets due to their predictable structure.")
+
+    lines.append("")
+    lines.append("| Username | Password |")
+    lines.append("| ---------- | ---------- |")
+
+    for account in accounts:
+        lines.append(f"| {account['username']} | {mask_password(account['password'])} |")
+
+    if stats:
+        lines.append("")
+        lines.append("The following keyboard walk patterns were identified most frequently:")
+        lines.append("")
+
+        lines.append("| Pattern | Occurrences |")
+        lines.append("| ---------- | ---------- |")
+
+        for pattern, frequency in stats:
+            lines.append(f"| {pattern} | {frequency} |")
+
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def commentary_common_passwords(results):
+
+    accounts = results["common_passwords"]["accounts"]
+    count = results["common_passwords"]["count"]
+    stats = results["common_passwords"]["stats"]
+
+    if not count:
+
+        return ("No recovered passwords were identified as containing commonly used password terms or well-known weak "
+            "password variants. This suggests that users are generally avoiding predictable password selections "
+            "that are commonly represented within attacker wordlists.")
+
+    lines = []
+
+    lines.append(f"A total of {human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+        "identified as containing commonly used password terms or variants thereof. Common password terms remain prevalent "
+        "within publicly available breach corpora and are routinely prioritised during password attacks.")
+
+    lines.append("")
+
+    lines.append("| Username | Password |")
+    lines.append("| ---------- | ---------- |")
+
+    for account in accounts:
+        lines.append(f"| {account['username']} | {mask_password(account['password'])} |")
+
+    if stats:
+
+        lines.append("")
+        lines.append("The following common password terms were identified most frequently:")
+        lines.append("")
+
+        lines.append("| Term | Occurrences |")
+        lines.append("| ---------- | ---------- |")
+
+        for term, frequency in stats:
+            lines.append(f"| {term} | {frequency} |")
+
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def commentary_character_classes(results):
+
+    stats = results["character_classes"]
+
+    lines = []
+
+    lines.append("Recovered passwords were analysed to determine the adoption of common character classes. Whilst the "
+        "presence of uppercase characters, numbers, and special characters may increase password complexity, "
+        "their use alone does not guarantee resistance to password guessing or password-cracking attacks.")
+
+    lines.append("")
+
+    lines.append("| Character Type | Adoption (%) |")
+    lines.append("| ---------- | ---------- |")
+
+    lines.append(f"| Lowercase Characters | {stats['lower']} |")
+    lines.append(f"| Uppercase Characters | {stats['upper']} |")
+    lines.append(f"| Numeric Characters | {stats['numeric']} |")
+    lines.append(f"| Special Characters | {stats['special']} |")
+
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def technical_commentary(results):
+
+    lines = []
+
+    total = results["total_passwords"]
+
+    lines.append("A password audit was performed against extracted password hashes. Password-cracking techniques "
+        "were used to recover plaintext credentials and, as such, not all passwords were expected to be "
+        f"identified within a reasonable timeframe. In total, {total} username and password combinations were successfully recovered and analysed.")
+    lines.append("")
+    lines.append(commentary_admins(results))
+    lines.append(commentary_password_lengths(results))
+    lines.append(commentary_password_reuse(results))
+    lines.append(commentary_similar_account_reuse(results))
+    lines.append(commentary_username_passwords(results))
+    lines.append(commentary_company_words(results))
+    lines.append(commentary_date_passwords(results))
+    lines.append(commentary_keyboard_walks(results))
+    lines.append(commentary_common_passwords(results))
+    lines.append(commentary_character_classes(results))
+
+    return "\n".join(lines)
 
 # ---------------------------------------------------------------------------
 # Main
@@ -683,6 +1106,7 @@ def main():
     parser.add_argument("-A", "--domain-admins", default="./ntds-organiser/domain-admins.txt", help="domain-admins.txt (default: ./ntds-organiser/domain-admins.txt)")
     parser.add_argument("-P", "--pass-policy", default="./ntds-organiser/domain-policy.txt", help="domain-policy.txt (default: ./ntds-organiser/domain-policy.txt)")
     parser.add_argument("-C", "--company-words", help="File containing company-related words")
+    parser.add_argument("-E", "--enabled-users", default="./ntds-organiser/enabled-users.txt", help="enabled-users.txt (default: ./ntds-organiser/enabled-users.txt)")
 
     args = parser.parse_args()
 
@@ -703,11 +1127,12 @@ def main():
     password_frequencies = password_frequency(passwords)
     char_classes = character_class_adoption(passwords)
     length_distribution = (password_length_distribution(passwords))
+    enabled_users = load_list(args.enabled_users)
 
     results = {}
 
     results["admins"] = {"accounts": admins,"count": len(admins)}
-    results["password_length"] = {"minimum_length": minimum_length, "failures": length_failures, "count": len(length_failures), "percentage": round(len(length_failures) / len(passwords) * 100, 1) if passwords else 0}
+    results["password_length"] = {"minimum_length": minimum_length, "failures": length_failures, "count": len(length_failures), "percentage": round(len(length_failures) / len(passwords) * 100) if passwords else 0}
     results["top_passwords"] = {"passwords": top_passes, "count": len(top_passes)}
     results["company_words"] = {"count": len(company_findings), "accounts": company_findings, "stats": company_word_stats(company_findings), "company_words": company_words}
     results["keyboard_walks"] = {"count": len(keyboard_findings), "accounts": keyboard_findings, "stats": keyboard_walk_stats(keyboard_findings)}
@@ -715,63 +1140,22 @@ def main():
     results["unique_passwords"] = len(set(p["password"]for p in passwords))
     results["username_passwords"] = {"count": len(username_findings), "accounts": username_findings}
     results["password_reuse"] = {"count": len(reuse_findings), "accounts": reuse_findings}
-    results["common_passwords"] = {"count": len(common_password_findings), "accounts": common_password_findings}
+    results["common_passwords"] = {"count": len(common_password_findings), "accounts": common_password_findings, "stats": common_password_stats(common_password_findings)}
     results["date_passwords"] = {"count": len(date_findings), "accounts": date_findings, "stats": date_stats(date_findings)}
     results["password_frequency"] = {"passwords": password_frequencies}
     results["character_classes"] = (char_classes)
     results["password_lengths"] = {"lengths": length_distribution}
+    results["enabled_users"] = len(enabled_users)
+    results["crack_rate"] = round(results["total_passwords"] / results["enabled_users"] * 100, 1)
 
     print()
     print(executive_summary(results))
     print()
 
-    print(f"Passwords Analysed : {results['total_passwords']}")
-    print(f"Compromised Admins : {results['admins']['count']}")
-    print(f"Unique Passwords   : {results['unique_passwords']}")
-    print(f"Company-related Words : {results['company_words']['count']}")
-    print(f"Keyboard Walks : {results['keyboard_walks']['count']}")
-    print(f"Username in Password : {results['username_passwords']['count']}")
-    print(f"Password Reuse Between Similar Accounts : {results['password_reuse']['count']}")
-    print(f"Common Passwords : {results['common_passwords']['count']}")
-    print(f"Date-Related Passwords : {results['date_passwords']['count']}")
-    print(f"Non-Compliant Passwords : {results['password_length']['count']}")
-
-    print("\nCompromised Admins:")
-    print(f"{results['admins']['accounts']}")
-
-    print("\nCompany-Related Words:")
-    print(f"{results['company_words']['accounts']}")
-
-    print("\nUsernames Within Passwords:")
-    print(f"{results['username_passwords']['accounts']}")
-
-    print("\nSimilar Accounts Reuse:")
-    print(f"{results['password_reuse']['accounts']}")
-
-    print("\nCommon Passwords:")
-    print(f"{results['common_passwords']['accounts']}")
-
-    print("\nDate-Related Passwords:")
-    print(f"{results['date_passwords']['accounts']}")
-
-    print("\nNon-Compliant Passwords:")
-    print(f"{results['password_length']['failures']}")
-
-    print("\nMost Frequent Passwords")
-    for password, count in (top_passwords_summary(results)):
-        print(f"  {password:<20} {count}")
-
-    print("\nCharacter Class Adoption")
-    print(f"Lowercase : {results['character_classes']['lower']}%")
-    print(f"Uppercase : {results['character_classes']['upper']}%")
-    print(f"Numbers   : {results['character_classes']['numeric']}%")
-    print(f"Special   : {results['character_classes']['special']}%")
-
-    print("\nMost Common Password Lengths")
-    for length, count in (results["password_lengths"]["lengths"][:10]):
-        percentage = round(count / results["total_passwords"] * 100, 1)
-        print(f"  {length:<2} {count:<4} ({percentage}%)")
-
+    print()
+    print("=== TECHNICAL COMMENTARY ===")
+    print()
+    print(technical_commentary(results))
 
 if __name__ == "__main__":
     main()
