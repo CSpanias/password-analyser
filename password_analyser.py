@@ -1232,8 +1232,9 @@ def main():
     results["crack_rate"] = round(results["total_passwords"] / results["enabled_users"] * 100, 1)
 
     print()
-    print(executive_summary(results))
+    print("=== EXECUTIVE SUMMARY ===")
     print()
+    print(executive_summary(results))
 
     print()
     print("=== TECHNICAL COMMENTARY ===")
