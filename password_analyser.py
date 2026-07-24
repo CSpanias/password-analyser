@@ -23,6 +23,13 @@ from collections import defaultdict
 # Constants
 # ---------------------------------------------------------------------------
 
+COLOR_GREEN = "\033[0;32m"
+COLOR_RED = "\033[0;31m"
+COLOR_YELLOW = "\033[1;33m"
+COLOR_CYAN = "\033[0;36m"
+COLOR_BOLD = "\033[1m"
+COLOR_RESET = "\033[0m"
+
 KEYBOARD_PATTERNS = [
 
     # qwerty row
@@ -1232,17 +1239,17 @@ def main():
     results["crack_rate"] = round(results["total_passwords"] / results["enabled_users"] * 100, 1)
 
     print()
-    print("=== EXECUTIVE SUMMARY ===")
+    print(f"{COLOR_CYAN}=== EXECUTIVE SUMMARY ==={COLOR_RESET}")
     print()
     print(executive_summary(results))
 
     print()
-    print("=== TECHNICAL COMMENTARY ===")
+    print(f"{COLOR_CYAN}=== TECHNICAL COMMENTARY ==={COLOR_RESET}")
     print()
     print(technical_commentary(results))
 
     print()
-    print("=== REMEDIATION GUIDANCE ===")
+    print(f"{COLOR_CYAN}=== REMEDIATION GUIDANCE ==={COLOR_RESET}")
     print()
     print(remediation_guidance(results))
 
