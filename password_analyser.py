@@ -633,18 +633,14 @@ def executive_summary(results):
     crack_rate = results["crack_rate"]
 
     summary = []
+    weaknesses = []
 
     summary.append("A password audit was performed against extracted Active Directory password hashes to assess the "
         "effectiveness of password selection practices and identify weaknesses that could increase the likelihood "
-        "of credential compromise.")
-
-    summary.append(
-        f"Through password-cracking techniques, it was possible to recover {total} plaintext passwords from "
-        f"{enabled_users:,} enabled user accounts, representing approximately {crack_rate}% of the assessed population. "
+        "of credential compromise. Through password-cracking techniques, it was possible to recover {total} plaintext passwords "
+        f"from {enabled_users:,} enabled user accounts, representing approximately {crack_rate}% of the assessed population. "
         "This demonstrates that a measurable proportion of user credentials remain susceptible to password-cracking "
         "attacks following credential exposure.")
-
-    weaknesses = []
 
     if admin_count:
     
