@@ -1120,7 +1120,7 @@ def remediation_guidance(results):
     ):
 
         lines.append("A number of recovered passwords were identified as containing predictable elements, including commonly "
-            "used password terms, organisation-related terminology, date-related references, keyboard sequences, and username-derived content."
+            "used password terms, organisation-related terminology, date-related references, keyboard sequences, and username-derived content. "
             "Users should be encouraged to select passwords that are unrelated to personal information, organisational terminology, or other "
             "predictable patterns. Technical controls such as password filtering solutions should also be considered to prevent the use of "
             "insecure or commonly observed password constructions.")
@@ -1166,6 +1166,37 @@ def remediation_guidance(results):
     lines.append("")
 
     return "\n".join(lines)
+
+# ---------------------------------------------------------------------------
+# Markdown Export
+# ---------------------------------------------------------------------------
+
+def markdown_report(results):
+
+    lines = []
+
+    lines.append("# Executive Summary")
+    lines.append("")
+    lines.append(executive_summary(results))
+    lines.append("")
+
+    lines.append("# Technical Commentary")
+    lines.append("")
+    lines.append(technical_commentary(results))
+    lines.append("")
+
+    lines.append("# Remediation Guidance")
+    lines.append("")
+    lines.append(remediation_guidance(results))
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def write_report(path, content):
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
 
 
 # ---------------------------------------------------------------------------
@@ -1222,20 +1253,13 @@ def main():
     results["enabled_users"] = len(enabled_users)
     results["crack_rate"] = round(results["total_passwords"] / results["enabled_users"] * 100, 1)
 
-    print()
-    print(f"{COLOR_CYAN}=== EXECUTIVE SUMMARY ==={COLOR_RESET}")
-    print()
-    print(executive_summary(results))
+    output_file = "results.md"
+    write_report(output_file, markdown_report(results))
 
     print()
-    print(f"{COLOR_CYAN}=== TECHNICAL COMMENTARY ==={COLOR_RESET}")
+    print(f"{COLOR_CYAN}[+] Executive Summary, technical commentary, and remediation guidance generated.")
+    print(f"{COLOR_GREEN}[+] Output: results.md{COLOR_RESET}")
     print()
-    print(technical_commentary(results))
-
-    print()
-    print(f"{COLOR_CYAN}=== REMEDIATION GUIDANCE ==={COLOR_RESET}")
-    print()
-    print(remediation_guidance(results))
 
 if __name__ == "__main__":
     main()
