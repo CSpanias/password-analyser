@@ -648,24 +648,24 @@ def executive_summary(results):
 
     if admin_count:
     
-            summary.append(f"Password weaknesses were also identified within privileged identities, resulting in the "
+            summary.append(f"Password weaknesses were identified within privileged identities, resulting in the "
                 f"successful recovery of {human_number(admin_count)} Domain Administrator password{'s' if admin_count > 1 else ''}. "
                 "Such identities represent high-value targets due to the elevated level of access they provide "
                 "across the environment. Their compromise would substantially increase the potential impact of a successful attack.")
 
+    if failure_count:
+    
+            summary.append(f"The domain enforced a minimum password length requirement of {human_number(minimum_length)} characters. "
+                f"However, analysis of the recovered credentials identified {failure_count} passwords "
+                f"({percentage}% of recovered passwords) that did not comply with this requirement, "
+                "indicating that weak, legacy, or otherwise non-compliant credentials remain present within the environment.")
+
     if weaknesses:
     
-            summary.append("The assessment identified recurring weaknesses relating to password selection practices. A "
+            summary.append("The assessment also identified recurring weaknesses relating to password selection practices. A "
                 "significant proportion of recovered credentials were found to follow predictable construction "
                 "patterns, reducing password entropy and increasing susceptibility to password guessing, password "
                 "spraying, and offline password-cracking attacks.")
-    
-    if failure_count:
-
-        summary.append(f"The domain enforced a minimum password length requirement of {human_number(minimum_length)} characters. "
-            f"However, analysis of the recovered credentials identified {failure_count} passwords "
-            f"({percentage}% of recovered passwords) that did not comply with this requirement, "
-            "indicating that weak, legacy, or otherwise non-compliant credentials remain present within the environment.")
 
     summary.append("Overall, the results indicate that password complexity and selection practices could be further improved. "
         "Strengthening password policy enforcement, reducing the use of predictable password patterns, and ensuring "
