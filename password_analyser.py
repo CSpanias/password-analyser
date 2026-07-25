@@ -750,21 +750,8 @@ def commentary_password_lengths(results):
             f"Analysis of the recovered credentials identified {failure_count} passwords ({failure_percentage}% "
             "of recovered passwords) that did not comply with this requirement. The most frequently observed "
             f"non-compliant password length{'s were' if len(common_lengths) > 1 else ' was'} "
-            f"{top_lengths} character{'s' if len(common_lengths) == 1 else ''}. The most commonly observed password length "
+            f"{top_lengths} character{'s' if len(common_lengths) == 1 else ''}, while the most commonly observed password length "
             f"overall was {most_common_length} characters.")
-
-        lines.append("")
-        lines.append("The following non-compliant password lengths were identified:")
-        lines.append("")
-
-        lines.append("| Password Length | Account Count | Percentage |")
-        lines.append("| ---------- | ---------- | ---------- |")
-
-        for length, frequency in sorted(distribution.items()):
-            distribution_percentage = round(frequency / total_passwords * 100, 1)
-
-            lines.append(f"| {length} | {frequency} | {distribution_percentage}% |")
-
         lines.append("")
 
     else:
@@ -1068,10 +1055,10 @@ def commentary_character_classes(results):
     lines.append("| Character Type | Adoption (%) |")
     lines.append("| ---------- | ---------- |")
 
-    lines.append(f"| Lowercase Characters | {stats['lower']} |")
-    lines.append(f"| Uppercase Characters | {stats['upper']} |")
-    lines.append(f"| Numeric Characters | {stats['numeric']} |")
-    lines.append(f"| Special Characters | {stats['special']} |")
+    lines.append(f"| Lowercase | {stats['lower']} |")
+    lines.append(f"| Uppercase | {stats['upper']} |")
+    lines.append(f"| Numeric   | {stats['numeric']} |")
+    lines.append(f"| Special   | {stats['special']} |")
 
     lines.append("")
 
