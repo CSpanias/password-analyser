@@ -646,38 +646,20 @@ def executive_summary(results):
 
     weaknesses = []
 
-    if company_count:
-        weaknesses.append("organisation-related terminology")
-
-    if common_count:
-        weaknesses.append("common password phrases")
-
-    if date_count:
-        weaknesses.append("date-based passwords")
-
-    if keyboard_count:
-        weaknesses.append("keyboard sequences")
-
-    if username_count:
-        weaknesses.append("username-derived passwords")
-
-    if reuse_count:
-        weaknesses.append("password reuse between related accounts")
+    if admin_count:
+    
+            summary.append(f"Password weaknesses were also identified within privileged identities, resulting in the "
+                f"successful recovery of {human_number(admin_count)} Domain Administrator password{'s' if admin_count > 1 else ''}. "
+                "Such identities represent high-value targets due to the elevated level of access they provide "
+                "across the environment. Their compromise would substantially increase the potential impact of a successful attack.")
 
     if weaknesses:
-
-        summary.append("The assessment identified recurring weaknesses relating to password selection practices. A "
-            "significant proportion of recovered credentials were found to follow predictable construction "
-            "patterns, reducing password entropy and increasing susceptibility to password guessing, password "
-            "spraying, and offline password-cracking attacks.")
-
-    if admin_count:
-
-        summary.append(f"Password weaknesses were also identified within privileged identities, resulting in the "
-            f"successful recovery of {human_number(admin_count)} Domain Administrator password{'s' if admin_count > 1 else ''}. "
-            "Such identities represent high-value targets due to the elevated level of access they provide "
-            "across the environment. Their compromise would substantially increase the potential impact of a successful attack.")
-
+    
+            summary.append("The assessment identified recurring weaknesses relating to password selection practices. A "
+                "significant proportion of recovered credentials were found to follow predictable construction "
+                "patterns, reducing password entropy and increasing susceptibility to password guessing, password "
+                "spraying, and offline password-cracking attacks.")
+    
     if failure_count:
 
         summary.append(f"The domain enforced a minimum password length requirement of {human_number(minimum_length)} characters. "
@@ -690,7 +672,26 @@ def executive_summary(results):
         "privileged accounts utilise unique, high-entropy passwords will reduce the likelihood of successful "
         "credential-based attacks and improve the overall resilience of the organisation's identity infrastructure.")
 
+    if reuse_count:
+            weaknesses.append("password reuse between related accounts")
+
+    if username_count:
+            weaknesses.append("username-derived passwords")
+
+    if company_count:
+        weaknesses.append("organisation-related terminology")
+
+    if common_count:
+        weaknesses.append("common password phrases")
+
+    if date_count:
+        weaknesses.append("date-based passwords")
+
+    if keyboard_count:
+        weaknesses.append("keyboard sequences")
+
     return "\n\n".join(summary)
+
 
 # ---------------------
 # Technical Commentary
