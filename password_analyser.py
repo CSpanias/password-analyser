@@ -240,12 +240,22 @@ def normalise_password(password):
     return password
 
 
-def human_number(value):
+def num_to_word(value):
 
     if value in NUMBER_WORDS:
         return NUMBER_WORDS[value]
 
     return str(value)
+
+def natural_join(items):
+
+    if len(items) == 1:
+        return items[0]
+
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
 
 
 # ---------------------------------------------------------------------------
@@ -635,41 +645,12 @@ def executive_summary(results):
     summary = []
     weaknesses = []
 
-    summary.append("A password audit was performed against extracted Active Directory password hashes to assess the "
-        "effectiveness of password selection practices and identify weaknesses that could increase the likelihood "
-        f"of credential compromise. Through password-cracking techniques, it was possible to recover {total} plaintext passwords "
-        f"from {enabled_users:,} enabled user accounts, representing approximately {crack_rate}% of the assessed population. "
-        "This demonstrates that a measurable proportion of user credentials remain susceptible to password-cracking "
-        "attacks following credential exposure.")
-
-    if admin_count:
-    
-            summary.append(f"Password weaknesses were identified within privileged identities, resulting in the "
-                f"successful recovery of {human_number(admin_count)} Domain Administrator password{'s' if admin_count > 1 else ''}. "
-                "Such identities represent high-value targets due to the elevated level of access they provide "
-                "across the environment. Their compromise would substantially increase the potential impact of a successful attack.")
-
-    if failure_count:
-    
-            summary.append(f"The domain enforced a minimum password length requirement of {human_number(minimum_length)} characters. "
-                f"However, analysis of the recovered credentials identified {failure_count} passwords "
-                f"({percentage}% of recovered passwords) that did not comply with this requirement, "
-                "indicating that weak, legacy, or otherwise non-compliant credentials remain present within the environment.")
-
-    if weaknesses:
-    
-            summary.append("The assessment also identified recurring weaknesses relating to password selection practices. A "
-                "significant proportion of recovered credentials were found to follow predictable construction "
-                "patterns, reducing password entropy and increasing susceptibility to password guessing, password "
-                "spraying, and offline password-cracking attacks.")
-
-    summary.append("Overall, the results indicate that password complexity and selection practices could be further improved. "
-        "Strengthening password policy enforcement, reducing the use of predictable password patterns, and ensuring "
-        "privileged accounts utilise unique, high-entropy passwords will reduce the likelihood of successful "
-        "credential-based attacks and improve the overall resilience of the organisation's identity infrastructure.")
-
     if reuse_count:
-            weaknesses.append("password reuse between related accounts")
+        weaknesses.append("password reuse between related accounts")
+
+    else:
+        summary.append("No password reuse was identified between related accounts, indicating that administrative account "
+            "separation does not appear to be undermined through credential reuse.")
 
     if username_count:
             weaknesses.append("username-derived passwords")
@@ -685,6 +666,50 @@ def executive_summary(results):
 
     if keyboard_count:
         weaknesses.append("keyboard sequences")
+
+    summary.append("A password audit was performed against extracted Active Directory password hashes to assess the "
+        "effectiveness of password selection practices and identify weaknesses that could increase the likelihood "
+        f"of credential compromise. Through password-cracking techniques, it was possible to recover {total} plaintext passwords "
+        f"from {enabled_users:,} enabled user accounts, representing approximately {crack_rate}% of the assessed population. "
+        "This demonstrates that a measurable proportion of user credentials remain susceptible to password-cracking "
+        "attacks following credential exposure.")
+
+    if admin_count:
+            summary.append(f"Password weaknesses were identified within privileged identities, resulting in the "
+                f"successful recovery of {num_to_word(admin_count)} Domain Administrator password{'s' if admin_count > 1 else ''}. "
+                "Such identities represent high-value targets due to the elevated level of access they provide "
+                "across the environment. Their compromise would substantially increase the potential impact of a successful attack.")
+
+    else:
+        summary.append("No Domain Administrator passwords were recovered during the assessment. This is a positive outcome as privileged "
+                       "identities represent high-value targets and their compromise would significantly increase the potential impact of a successful attack.")
+
+    if failure_count:
+    
+            summary.append(f"The domain enforced a minimum password length requirement of {num_to_word(minimum_length)} characters. "
+                f"However, analysis of the recovered credentials identified {failure_count} passwords "
+                f"({percentage}% of recovered passwords) that did not comply with this requirement, "
+                "indicating that weak, legacy, or otherwise non-compliant credentials remain present within the environment.")
+
+    else:
+        summary.append("All recovered passwords complied with the domain's minimum password length requirement.")
+
+    if weaknesses:
+        summary.append(
+            f"The assessment also identified recurring password selection weaknesses including {natural_join(weaknesses)}. "
+            "These patterns reduce password entropy and increase susceptibility to password guessing, password spraying, "
+            "and offline password-cracking attacks.")
+
+    has_findings = (admin_count or failure_count or weaknesses)
+
+    if has_findings:
+        summary.append("Overall, the results indicate that password complexity and selection practices could be further improved. "
+                "Strengthening password policy enforcement, reducing the use of predictable password patterns, and ensuring "
+                "privileged accounts utilise unique, high-entropy passwords will reduce the likelihood of successful "
+                "credential-based attacks and improve the overall resilience of the organisation's identity infrastructure.")
+
+    else:
+        summary.append("Overall, the assessment did not identify any significant password-related weaknesses within the recovered credential dataset.")
 
     return "\n\n".join(summary)
 
@@ -706,7 +731,7 @@ def commentary_admins(results):
 
     lines = []
 
-    lines.append(f"{human_number(count).capitalize()} Domain Administrator "
+    lines.append(f"{num_to_word(count).capitalize()} Domain Administrator "
         f"account{'s were' if count > 1 else ' was'} successfully recovered during the password audit.")
     lines.append("")
 
@@ -824,7 +849,7 @@ def commentary_similar_account_reuse(results):
     lines = []
 
     lines.append(
-        f"{human_number(count).capitalize()} account pair{'s were' if count > 1 else ' was'} "
+        f"{num_to_word(count).capitalize()} account pair{'s were' if count > 1 else ' was'} "
         "identified as sharing passwords between similarly named accounts. This behaviour is "
         "commonly observed where standard and privileged accounts are operated by the same individual or "
         "service. Password reuse increases the impact of credential compromise and may facilitate privilege "
@@ -852,7 +877,7 @@ def commentary_username_passwords(results):
 
     lines = []
 
-    lines.append(f"{human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+    lines.append(f"{num_to_word(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing the username or a variation thereof. Passwords incorporating username-related "
         "information reduce password entropy and may be more easily predicted by an attacker.")
 
@@ -883,7 +908,7 @@ def commentary_company_words(results):
     lines = []
 
     lines.append(
-        f"The organisation name, or a variation thereof, was identified within {human_number(count)} recovered "
+        f"The organisation name, or a variation thereof, was identified within {num_to_word(count)} recovered "
         f"password{'s' if count != 1 else ''}. Organisation-specific terminology may be inferred from publicly "
         "available information and can therefore increase exposure to targeted authentication attacks.")
 
@@ -924,7 +949,7 @@ def commentary_date_passwords(results):
 
     lines = []
 
-    lines.append(f"{human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+    lines.append(f"{num_to_word(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing references to days, months, seasons, or other date-related terms. "
         "Dates, seasons, and similar memorable references are commonly used to improve memorability "
         "but result in predictable password construction patterns.")
@@ -967,7 +992,7 @@ def commentary_keyboard_walks(results):
 
     lines = []
 
-    lines.append(f"{human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+    lines.append(f"{num_to_word(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing keyboard walking patterns. Keyboard sequences are widely represented within password "
         "auditing wordlists and cracking rule sets due to their predictable structure.")
 
@@ -1008,7 +1033,7 @@ def commentary_common_passwords(results):
 
     lines = []
 
-    lines.append(f"A total of {human_number(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
+    lines.append(f"A total of {num_to_word(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing commonly used password terms or variants thereof. Common password terms remain prevalent "
         "within publicly available breach corpora and are routinely prioritised during password attacks.")
 
