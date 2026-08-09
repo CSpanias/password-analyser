@@ -79,7 +79,6 @@ COMMON_PASSWORDS = {
     "letmein",
     "admin",
     "iloveyou",
-    "qwerty",
     "starwars",
     "dragon",
     "monkey",
@@ -355,20 +354,23 @@ def load_company_words(path):
 def company_name_passwords(passwords, company_words):
 
     findings = []
+    company_words = sorted(company_words, key=len, reverse=True)
 
     for record in passwords:
 
         password_normalised = normalise_text(record["password"])
-        matches = []
 
         for word in company_words:
-            normalised_word = normalise_text(word)
 
-            if normalised_word in password_normalised:
-                matches.append(word)
+            if normalise_text(word) in password_normalised:
 
-        if matches:
-            findings.append({"username": record["username"], "password": record["password"], "matches": matches})
+                findings.append({
+                    "username": record["username"],
+                    "password": record["password"],
+                    "matches": [word]
+                })
+
+                break
 
     return findings
 
@@ -388,18 +390,23 @@ def company_word_stats(company_findings):
 def keyboard_walk_passwords(passwords):
 
     findings = []
+    patterns = sorted(KEYBOARD_PATTERNS, key=len, reverse=True)
 
     for record in passwords:
-        password = record["password"].lower()
-        matches = []
 
-        for pattern in KEYBOARD_PATTERNS:
+        password = record["password"].lower()
+
+        for pattern in patterns:
 
             if pattern in password:
-                matches.append(pattern)
 
-        if matches:
-            findings.append({"username": record["username"], "password": record["password"], "matches": matches})
+                findings.append({
+                    "username": record["username"],
+                    "password": record["password"],
+                    "matches": [pattern]
+                })
+
+                break
 
     return findings
 
@@ -483,18 +490,27 @@ def reused_passwords(passwords):
 def similar_account_reuse(passwords):
 
     findings = []
-    reused = reused_passwords(passwords)
+    similar_pairs = 0
 
-    for password, users in reused.items():
-        for i in range(len(users)):
-            for j in range(i + 1, len(users)):
-                left = users[i]
-                right = users[j]
+    for i in range(len(passwords)):
+        for j in range(i + 1, len(passwords)):
 
-                if (username_base(left) == username_base(right)):
-                    findings.append({"password": password, "username": left, "shared_with": right})
+            left = passwords[i]
+            right = passwords[j]
 
-    return findings
+            if username_base(left["username"]) == username_base(right["username"]):
+
+                similar_pairs += 1
+
+                if left["password"] == right["password"]:
+
+                    findings.append({
+                        "password": left["password"],
+                        "username": left["username"],
+                        "shared_with": right["username"]
+                    })
+
+    return findings, similar_pairs
 
 
 # Weak/Common Passwords
@@ -636,6 +652,7 @@ def executive_summary(results):
     minimum_length = results["password_length"]["minimum_length"]
     company_count = results["company_words"]["count"]
     username_count = results["username_passwords"]["count"]
+    similar_pairs = results["password_reuse"]["similarPairs"]
     reuse_count = results["password_reuse"]["count"]
     common_count = results["common_passwords"]["count"]
     date_count = results["date_passwords"]["count"]
@@ -680,9 +697,15 @@ def executive_summary(results):
         summary.append("No Domain Administrator passwords were recovered during the assessment. This is a positive outcome as privileged "
             "identities represent high-value targets and their compromise would significantly increase the potential impact of a successful attack.")
 
-    if not reuse_count:
-        summary.append("No password reuse was identified between similarly named accounts, indicating that administrative account "
-            "separation does not appear to be undermined through credential reuse.")
+    if similar_pairs == 0:
+    
+        summary.append("No similarly named account pairs were identified during the assessment. As a result, password reuse"
+            " between related standard and privileged accounts could not be assessed.")
+    
+    elif reuse_count == 0:
+
+        summary.append("No password reuse was identified between similarly named accounts, indicating that administrative "
+            "account separation does not appear to be undermined through credential reuse.")
 
     if failure_count:
     
@@ -837,27 +860,46 @@ def commentary_password_reuse(results):
 
 def commentary_similar_account_reuse(results):
 
-    reuse_accounts = (results["password_reuse"]["accounts"])
-    count = (results["password_reuse"]["count"])
+    reuse_accounts = results["password_reuse"]["accounts"]
+    count = results["password_reuse"]["count"]
+    similar_pairs = results["password_reuse"]["similarPairs"]
 
-    if not count:
+    if similar_pairs == 0:
 
-        return ("No password reuse was identified between similarly named accounts. This suggests that standard and privileged "
-            "accounts are generally configured with separate credentials, reducing the potential impact of credential compromise.\n")
+        return (
+            "No similarly named account pairs were identified for analysis. "
+            "As a result, password reuse between standard and privileged "
+            "accounts could not be assessed.\n"
+        )
+
+    if count == 0:
+
+        return (
+            "No password reuse was identified between similarly named accounts. "
+            "This suggests that standard and privileged accounts are generally "
+            "configured with separate credentials, reducing the potential impact "
+            "of credential compromise.\n"
+        )
 
     lines = []
 
-    lines.append(f"A total of {num_to_word(count)} account pair{'s were' if count > 1 else ' was'} "
+    lines.append(
+        f"A total of {num_to_word(count)} account pair{'s were' if count > 1 else ' was'} "
         "identified as sharing passwords between similarly named accounts. This behaviour is "
-        "commonly observed where standard and privileged accounts are operated by the same individual or "
-        "service. Password reuse increases the impact of credential compromise and may facilitate privilege "
-        "escalation or lateral movement.\n")
+        "commonly observed where standard and privileged accounts are operated by the same "
+        "individual or service. Password reuse increases the impact of credential compromise "
+        "and may facilitate privilege escalation or lateral movement.\n"
+    )
 
     lines.append("| Username | Password | Shared With |")
     lines.append("| ---------- | ---------- | ---------- |")
 
     for account in reuse_accounts[:5]:
-        lines.append(f"| {account['username']} | {mask_password(account['password'])} | {account['shared_with']} |")
+        lines.append(
+            f"| {account['username']} | "
+            f"{mask_password(account['password'])} | "
+            f"{account['shared_with']} |"
+        )
 
     lines.append("")
 
@@ -943,10 +985,9 @@ def commentary_date_passwords(results):
 
     lines = []
 
-    lines.append(f"A total of {num_to_word(count)} recovered password{'s were' if count != 1 else ' was'} "
-        "identified as containing references to days, months, seasons, or other date-related terms. "
-        "Dates, seasons, and similar memorable references are commonly used to improve memorability "
-        "but result in predictable password construction patterns.\n")
+    lines.append(f"A total of {num_to_word(count)} recovered password{'s were' if count != 1 else ' was'} identified as "
+        "containing references to days, months, seasons, or other date-related terms. Such references are commonly used "
+        "to improve memorability but result in predictable password construction patterns.\n")
 
     lines.append("| Username | Password |")
     lines.append("| ---------- | ---------- |")
@@ -998,10 +1039,13 @@ def commentary_keyboard_walks(results):
 
     if stats:
         lines.append("")
-        if len(stats) == 1:
+
+        total_patterns = sum(frequency for _, frequency in stats)
+
+        if total_patterns == 1:
             lines.append("The following keyboard walk pattern was identified:\n")
         else:
-            lines.append("The following keyboard walk patterns were identified most frequently:\n")
+            lines.append("The following keyboard walk patterns were identified:\n")
 
         lines.append("| Pattern | Occurrences |")
         lines.append("| ---------- | ---------- |")
@@ -1161,8 +1205,8 @@ def remediation_guidance(results):
     if reused:
 
         lines.append("Password reuse was identified across multiple accounts. Users should be encouraged to maintain "
-            "unique passwords for all accounts and services. Password filtering solutions capable of screening previously "
-            "disclosed or commonly reused passwords should be considered as an additional preventative control.\n")
+            "unique passwords for all accounts and services. Where appropriate, password managers should be "
+            "implemented to reduce credential reuse and support the adoption of unique passwords.\n")
 
     # ----------------------
     # Password Construction
@@ -1178,7 +1222,7 @@ def remediation_guidance(results):
 
         lines.append("A number of recovered passwords were identified as containing predictable elements, including commonly "
             "used password terms, organisation-related terminology, date-related references, keyboard sequences, and username-derived content. "
-            "Users should be encouraged to select passwords that are unrelated to personal information, organisational terminology, or other "
+            "Users should select passwords that are unrelated to personal information, organisational terminology, or other "
             "predictable patterns. Technical controls such as password filtering solutions should also be considered to prevent the use of "
             "insecure or commonly observed password constructions.\n")
 
@@ -1252,7 +1296,7 @@ def main():
     company_findings = company_name_passwords(passwords, company_words)
     keyboard_findings = keyboard_walk_passwords(passwords)
     username_findings = username_passwords(passwords)
-    reuse_findings = similar_account_reuse(passwords)
+    reuse_accounts, similar_pairs = similar_account_reuse(passwords)
     common_password_findings = common_passwords(passwords)
     date_findings = date_passwords(passwords)
     password_frequencies = password_frequency(passwords)
@@ -1270,7 +1314,7 @@ def main():
     results["total_passwords"] = len(passwords)
     results["unique_passwords"] = len(set(p["password"]for p in passwords))
     results["username_passwords"] = {"count": len(username_findings), "accounts": username_findings}
-    results["password_reuse"] = {"count": len(reuse_findings), "accounts": reuse_findings}
+    results["password_reuse"] = {"accounts": reuse_accounts, "count": len(reuse_accounts), "similarPairs": similar_pairs}
     results["common_passwords"] = {"count": len(common_password_findings), "accounts": common_password_findings, "stats": common_password_stats(common_password_findings)}
     results["date_passwords"] = {"count": len(date_findings), "accounts": date_findings, "stats": date_stats(date_findings)}
     results["password_frequency"] = {"passwords": password_frequencies}
