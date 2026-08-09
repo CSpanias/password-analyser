@@ -649,7 +649,7 @@ def executive_summary(results):
         weaknesses.append("password reuse between related accounts")
 
     if username_count:
-            weaknesses.append("username-derived passwords")
+        weaknesses.append("username-derived passwords")
 
     if company_count:
         weaknesses.append("organisation-related terminology")
@@ -731,9 +731,9 @@ def commentary_admins(results):
 
     lines = []
 
-    lines.append(f"{num_to_word(count).capitalize()} Domain Administrator "
-        f"account{'s were' if count > 1 else ' was'} successfully recovered during the password audit.")
-    lines.append("")
+    lines.append(f"{num_to_word(count).capitalize()} Domain Administrator account{'s were' if count > 1 else ' was'} "
+            "successfully recovered during the password audit. Privileged accounts represent high-value targets and "
+            "their compromise significantly increases the potential impact of a successful attack.\n")
 
     lines.append("| Username | Password |")
     lines.append("| ---------- | ---------- |")
@@ -772,7 +772,7 @@ def commentary_password_lengths(results):
                 f"Analysis of the recovered credentials identified {num_to_word(failure_count)} passwords ({failure_percentage}% "
                 "of recovered passwords) that did not comply with this requirement. The most frequently observed "
                 f"non-compliant password length was {top_lengths} characters, which was also the most commonly "
-                "observed password length overall.")
+                "observed password length overall.\n")
 
         else:
 
@@ -781,11 +781,9 @@ def commentary_password_lengths(results):
                 "of recovered passwords) that did not comply with this requirement. The most frequently observed "
                 f"non-compliant password length{'s were' if len(common_lengths) > 1 else ' was'} "
                 f"{top_lengths} character{'s' if len(common_lengths) == 1 else ''}, while the most commonly observed password length "
-                f"overall was {most_common_length} characters.")
+                f"overall was {most_common_length} characters.\n")
 
-        lines.append("")
-        lines.append("The following non-compliant password lengths were observed most frequently:")
-        lines.append("")
+        lines.append("The following non-compliant password lengths were observed most frequently:\n")
         
         lines.append("| Length | Count | Percentage |")
         lines.append("| ---------- | ---------- | ---------- |")
@@ -799,8 +797,7 @@ def commentary_password_lengths(results):
     else:
         lines.append("All recovered passwords complied with the configured minimum password length requirement "
             f"of {minimum_length} characters. This indicates effective enforcement of the domain password "
-            f"policy. The most commonly observed password length was {most_common_length} characters.")
-        lines.append("")
+            f"policy. The most commonly observed password length was {most_common_length} characters.\n")
 
     return "\n".join(lines)
 
@@ -817,23 +814,20 @@ def commentary_password_reuse(results):
 
     if not reused_passwords:
         return ("No password reuse was identified across the recovered passwords. This reduces the "
-            "potential impact of credential compromise.")
+            "potential impact of credential compromise.\n")
 
     lines = []
 
-    lines.append(
-        "Analysis of the recovered credentials identified several passwords that were reused across multiple "
+    lines.append("Analysis of the recovered credentials identified several passwords that were reused across multiple "
         "accounts. Password reuse increases the impact of credential compromise, as a single recovered password "
-        "may provide access to multiple systems, services, or user accounts.")
-
-    lines.append("")
+        "may provide access to multiple systems, services, or user accounts.\n")
 
     lines.append("| Password | Times Seen | Percentage |")
     lines.append("| ---------- | ---------- | ---------- |")
 
     total_passwords = results["total_passwords"]
 
-    for entry in reused_passwords[:10]:
+    for entry in reused_passwords[:5]:
         percentage = round(entry["count"] / total_passwords * 100, 1)
         lines.append(f"| {mask_password(entry['password'])} | {entry['count']:,} | {percentage}% |")
     
@@ -857,13 +851,12 @@ def commentary_similar_account_reuse(results):
         "identified as sharing passwords between similarly named accounts. This behaviour is "
         "commonly observed where standard and privileged accounts are operated by the same individual or "
         "service. Password reuse increases the impact of credential compromise and may facilitate privilege "
-        "escalation or lateral movement. A sample of such cases is listed below:")
+        "escalation or lateral movement.\n")
 
-    lines.append("")
     lines.append("| Username | Password | Shared With |")
     lines.append("| ---------- | ---------- | ---------- |")
 
-    for account in reuse_accounts[:10]:
+    for account in reuse_accounts[:5]:
         lines.append(f"| {account['username']} | {mask_password(account['password'])} | {account['shared_with']} |")
 
     lines.append("")
@@ -883,9 +876,7 @@ def commentary_username_passwords(results):
 
     lines.append(f"{num_to_word(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing the username or a variation thereof. Passwords incorporating username-related "
-        "information reduce password entropy and may be more easily predicted by an attacker.")
-
-    lines.append("")
+        "information reduce password entropy and may be more easily predicted by an attacker.\n")
 
     lines.append("| Username | Password |")
     lines.append("| ---------- | ---------- |")
@@ -911,13 +902,9 @@ def commentary_company_words(results):
 
     lines = []
 
-    lines.append(
-        f"The organisation name, or a variation thereof, was identified within {num_to_word(count)} recovered "
+    lines.append(f"The organisation name, or a variation thereof, was identified within {num_to_word(count)} recovered "
         f"password{'s' if count != 1 else ''}. Organisation-specific terminology may be inferred from publicly "
-        "available information and can therefore increase exposure to targeted authentication attacks. Example "
-        "affected accounts are listed below:")
-
-    lines.append("")
+        "available information and can therefore increase exposure to targeted authentication attacks.\n")
 
     lines.append("| Username | Password |")
     lines.append("| ---------- | ---------- |")
@@ -928,10 +915,9 @@ def commentary_company_words(results):
     if stats:
         lines.append("")
         if len(stats) == 1:
-            lines.append("The following organisation-related term was identified within recovered passwords:")
+            lines.append("The following organisation-related term was identified within recovered passwords:\n")
         else:
-            lines.append("The following organisation-related terms were identified most frequently within recovered passwords:")
-        lines.append("")
+            lines.append("The following organisation-related terms were identified most frequently within recovered passwords:\n")
 
         lines.append("| Term | Occurrences |")
         lines.append("| ---------- | ---------- |")
@@ -960,9 +946,7 @@ def commentary_date_passwords(results):
     lines.append(f"A total of {num_to_word(count)} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing references to days, months, seasons, or other date-related terms. "
         "Dates, seasons, and similar memorable references are commonly used to improve memorability "
-        "but result in predictable password construction patterns. A sample of affected accounts is listed below:")
-
-    lines.append("")
+        "but result in predictable password construction patterns.\n")
 
     lines.append("| Username | Password |")
     lines.append("| ---------- | ---------- |")
@@ -974,10 +958,9 @@ def commentary_date_passwords(results):
 
         lines.append("")
         if len(stats) == 1:
-            lines.append("The following date-related term was identified within recovered passwords:")
+            lines.append("The following date-related term was identified within recovered passwords:\n")
         else:
-            lines.append("The following date-related terms were identified most frequently within recovered passwords:")
-        lines.append("")
+            lines.append("The following date-related terms were identified most frequently within recovered passwords:\n")
 
         lines.append("| Term | Occurrences |")
         lines.append("| ---------- | ---------- |")
@@ -1005,9 +988,8 @@ def commentary_keyboard_walks(results):
 
     lines.append(f"{num_to_word(count).capitalize()} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing keyboard walking patterns. Keyboard sequences are widely represented within password "
-        "auditing wordlists and cracking rule sets due to their predictable structure.")
+        "auditing wordlists and cracking rule sets due to their predictable structure.\n")
 
-    lines.append("")
     lines.append("| Username | Password |")
     lines.append("| ---------- | ---------- |")
 
@@ -1017,10 +999,9 @@ def commentary_keyboard_walks(results):
     if stats:
         lines.append("")
         if len(stats) == 1:
-            lines.append("The following keyboard walk pattern was identified:")
+            lines.append("The following keyboard walk pattern was identified:\n")
         else:
-            lines.append("The following keyboard walk patterns were identified most frequently:")
-        lines.append("")
+            lines.append("The following keyboard walk patterns were identified most frequently:\n")
 
         lines.append("| Pattern | Occurrences |")
         lines.append("| ---------- | ---------- |")
@@ -1049,10 +1030,7 @@ def commentary_common_passwords(results):
 
     lines.append(f"A total of {num_to_word(count)} recovered password{'s were' if count != 1 else ' was'} "
         "identified as containing commonly used password terms or variants thereof. Common password terms remain prevalent "
-        "within publicly available breach corpora and are routinely prioritised during password attacks. A sample of affected "
-        "accounts is listed below:")
-
-    lines.append("")
+        "within publicly available breach corpora and are routinely prioritised during password attacks.\n")
 
     lines.append("| Username | Password |")
     lines.append("| ---------- | ---------- |")
@@ -1064,10 +1042,9 @@ def commentary_common_passwords(results):
 
         lines.append("")
         if len(stats) == 1:
-            lines.append("The following common password term was identified:")
+            lines.append("The following common password term was identified:\n")
         else:
-            lines.append("The following common password terms were identified most frequently:")
-        lines.append("")
+            lines.append("The following common password terms were identified most frequently:\n")
 
         lines.append("| Term | Occurrences |")
         lines.append("| ---------- | ---------- |")
@@ -1088,9 +1065,7 @@ def commentary_character_classes(results):
 
     lines.append("Recovered passwords were analysed to determine the adoption of common character classes. Whilst the "
         "presence of uppercase characters, numbers, and special characters may increase password complexity, "
-        "their use alone does not guarantee resistance to password guessing or password-cracking attacks.")
-
-    lines.append("")
+        "their use alone does not guarantee resistance to password guessing or password-cracking attacks.\n")
 
     lines.append("| Character Type | Adoption (%) |")
     lines.append("| ---------- | ---------- |")
@@ -1110,11 +1085,21 @@ def technical_commentary(results):
     lines = []
 
     total = results["total_passwords"]
+    enabled_users = results["enabled_users"]
+    crack_rate = results["crack_rate"]
 
-    lines.append("A password audit was performed against extracted password hashes. Password-cracking techniques "
-        "were used to recover plaintext credentials and, as such, not all passwords were expected to be "
-        f"identified within a reasonable timeframe. In total, {num_to_word(total)} username and password combinations were successfully recovered and analysed.")
-    lines.append("")
+    lines.append("A password audit was performed against extracted Active Directory password hashes to assess the "
+        "effectiveness of password selection practices and identify weaknesses that could increase the likelihood "
+        f"of credential compromise.\n\nThrough password-cracking techniques, it was possible to recover {num_to_word(total)} "
+        f"plaintext passwords from {num_to_word(enabled_users)} enabled user accounts, representing approximately {crack_rate}% "
+        "of the assessed population. This demonstrates that a measurable proportion of user credentials remain susceptible to "
+        "password-cracking attacks following credential exposure. The recovered passwords were subsequently analysed to identify "
+        "common password selection patterns, policy non-compliance, and other indicators of weak password hygiene.\n" )
+
+    lines.append("To maintain report readability, example findings have been included throughout this section. Unless otherwise "
+            "stated, tables are intended to provide representative samples and may not contain all affected accounts identified during "
+            "the assessment.\n")
+
     lines.append(commentary_admins(results))
     lines.append(commentary_password_lengths(results))
     lines.append(commentary_password_reuse(results))
@@ -1138,6 +1123,14 @@ def remediation_guidance(results):
     lines = []
 
     # ------------------------
+    # Introductory Text
+    # ------------------------
+
+    lines.append("The password audit identified a number of conditions that increase susceptibility to "
+        "password guessing, password spraying, and offline password-cracking attacks. The recommendations "
+        "below should be considered as part of an ongoing programme of identity and access management improvement.\n")
+
+    # ------------------------
     # Administrative Accounts
     # ------------------------
 
@@ -1146,9 +1139,7 @@ def remediation_guidance(results):
         lines.append("Administrative and other highly privileged accounts should utilise unique, high-entropy passwords that "
             "are not shared with standard user accounts. Where possible, a separate password policy should be "
             "applied to privileged identities, enforcing a minimum password length of at least 15 "
-            "characters and preventing password reuse between account types.")
-
-        lines.append("")
+            "characters and preventing password reuse between account types.\n")
 
     # -------------------------------
     # Password Length and Complexity
@@ -1159,9 +1150,7 @@ def remediation_guidance(results):
         lines.append("Several recovered passwords did not comply with the configured minimum password length requirement. "
             "Password policy settings should be reviewed to ensure that all accounts meet the organisation's "
             "baseline security requirements and that legacy or non-compliant credentials are remediated. Longer passwords and "
-            "passphrases generally provide greater resistance to offline password-cracking attacks and should be encouraged wherever possible.")
-
-        lines.append("")
+            "passphrases generally provide greater resistance to offline password-cracking attacks and should be encouraged wherever possible.\n")
 
     # ---------------
     # Password Reuse
@@ -1173,9 +1162,7 @@ def remediation_guidance(results):
 
         lines.append("Password reuse was identified across multiple accounts. Users should be encouraged to maintain "
             "unique passwords for all accounts and services. Password filtering solutions capable of screening previously "
-            "disclosed or commonly reused passwords should be considered as an additional preventative control.")
-
-        lines.append("")
+            "disclosed or commonly reused passwords should be considered as an additional preventative control.\n")
 
     # ----------------------
     # Password Construction
@@ -1193,9 +1180,7 @@ def remediation_guidance(results):
             "used password terms, organisation-related terminology, date-related references, keyboard sequences, and username-derived content. "
             "Users should be encouraged to select passwords that are unrelated to personal information, organisational terminology, or other "
             "predictable patterns. Technical controls such as password filtering solutions should also be considered to prevent the use of "
-            "insecure or commonly observed password constructions.")
-
-        lines.append("")
+            "insecure or commonly observed password constructions.\n")
 
     # ----------------------------
     # Multi-Factor Authentication
@@ -1204,9 +1189,7 @@ def remediation_guidance(results):
     lines.append("Regardless of the specific weaknesses identified, multi-factor authentication (MFA) should be enforced for "
         "all externally accessible services and privileged accounts wherever technically feasible. Whilst strong "
         "passwords remain important, MFA provides additional protection against password-based attacks and reduces the "
-        "likelihood of account compromise following credential exposure.")
-
-    lines.append("")
+        "likelihood of account compromise following credential exposure.\n")
 
     return "\n".join(lines)
 
@@ -1248,7 +1231,7 @@ def write_report(path, content):
 
 def main():
 
-    parser = argparse.ArgumentParser(description="Password Audit", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="[*] Password Analyser v1.0", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument("-M", "--mapped-passwords", required=True, help="Recovered NTLM passwords file")
     parser.add_argument("-A", "--domain-admins", default="./ntds-organiser/domain-admins.txt", help="Domain Admin account list")
