@@ -100,4 +100,4 @@ password-analyser -M mapped-passwords.txt
 
 ## Roadmap
 
-* Add privileged groups (e.g. `Account Operators`, `Back Operators`, `DNS Admins`, etc.) on the analysis
+* Include memberships of privileged groups (e.g. Account Operators, Backup Operators, DNS Admins, etc.) in the analysis.
