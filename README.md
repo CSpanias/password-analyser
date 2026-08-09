@@ -81,18 +81,12 @@ options:
                         Organisation-specific password analysis terms (default: ./ntds-organiser/company-words.txt)
   -E, --enabled-users ENABLED_USERS
                         Enabled user accounts list (default: ./ntds-organiser/enabled-users.txt)
-
-# Basic Analysis
-password-analyser -M mapped-passwords.txt
-
-# Full Workflow
-password-analyser -M mapped-passwords.txt -A domain-admins.txt -P domain-policy.txt -E enabled-users.txt -C company-words.txt
 ```
 
 ## Example Output
 
 ```bash
-password-analyser -M mapped-passwords.txt -A domain-admins.txt -P domain-policy.txt -E enabled-users.txt -C company-words.txt
+password-analyser -M mapped-passwords.txt
 
 [+] Markdown report written to: report.md
 ```
