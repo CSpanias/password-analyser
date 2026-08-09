@@ -58,7 +58,9 @@ password-analyser -h
 
 ## Usage
 
-**Run `password-analyser` from the directory containing [`ntds-organiser`](https://github.com/CSpanias/ntds-organiser)**. The files `domain-admins.txt`, `domain-policy.txt`, `company-words.txt`, and `enabled-users.txt` are loaded automatically from the ntds-organiser output directory, leaving only the mapped passwords file to be specified manually.
+**Run `password-analyser` from the directory containing [`ntds-organiser`](https://github.com/CSpanias/ntds-organiser)**.
+
+The files `domain-admins.txt`, `domain-policy.txt`, `company-words.txt`, and `enabled-users.txt` are loaded automatically from the ntds-organiser output directory, leaving only the mapped passwords file to be specified manually.
 
 ```bash
 # Help menu
