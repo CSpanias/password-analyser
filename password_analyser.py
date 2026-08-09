@@ -1150,26 +1150,6 @@ def remediation_guidance(results):
 
         lines.append("")
 
-    # ----------------------
-    # Password Construction
-    # ----------------------
-
-    if (
-        results["company_words"]["count"]
-        or results["username_passwords"]["count"]
-        or results["date_passwords"]["count"]
-        or results["common_passwords"]["count"]
-        or results["keyboard_walks"]["count"]
-    ):
-
-        lines.append("A number of recovered passwords were identified as containing predictable elements, including commonly "
-            "used password terms, organisation-related terminology, date-related references, keyboard sequences, and username-derived content. "
-            "Users should be encouraged to select passwords that are unrelated to personal information, organisational terminology, or other "
-            "predictable patterns. Technical controls such as password filtering solutions should also be considered to prevent the use of "
-            "insecure or commonly observed password constructions.")
-
-        lines.append("")
-
     # -------------------------------
     # Password Length and Complexity
     # -------------------------------
@@ -1197,14 +1177,34 @@ def remediation_guidance(results):
 
         lines.append("")
 
+    # ----------------------
+    # Password Construction
+    # ----------------------
+
+    if (
+        results["company_words"]["count"]
+        or results["username_passwords"]["count"]
+        or results["date_passwords"]["count"]
+        or results["common_passwords"]["count"]
+        or results["keyboard_walks"]["count"]
+    ):
+
+        lines.append("A number of recovered passwords were identified as containing predictable elements, including commonly "
+            "used password terms, organisation-related terminology, date-related references, keyboard sequences, and username-derived content. "
+            "Users should be encouraged to select passwords that are unrelated to personal information, organisational terminology, or other "
+            "predictable patterns. Technical controls such as password filtering solutions should also be considered to prevent the use of "
+            "insecure or commonly observed password constructions.")
+
+        lines.append("")
+
     # ----------------------------
     # Multi-Factor Authentication
     # ----------------------------
 
-    lines.append("Regardless of the specific weaknesses identified, multi-factor authentication should be enforced for "
+    lines.append("Regardless of the specific weaknesses identified, multi-factor authentication (MFA) should be enforced for "
         "all externally accessible services and privileged accounts wherever technically feasible. Whilst strong "
-        "passwords remain important, multi-factor authentication provides additional protection "
-        "against password-based attacks and reduces the likelihood of account compromise following credential exposure.")
+        "passwords remain important, MFA provides additional protection against password-based attacks and reduces the "
+        "likelihood of account compromise following credential exposure.")
 
     lines.append("")
 
