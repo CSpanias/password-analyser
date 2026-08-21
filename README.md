@@ -1,5 +1,8 @@
 # Password-Analyser
 
+> [!WARNING]
+> Deprecated and kept only as a PoC for the article, see [`password-audit`](https://github.com/CSpanias/password-audit) for the actual tool.
+
 A Python-based tool designed to automate the analysis phase of Active Directory password audits.
 
 Developed as a Proof of Concept to accompany [Password Audits Part 4: Analysing Results](https://mollysec.com/posts/password-audits-part-4/).
